@@ -1,4 +1,5 @@
 #![cfg(unix)]
+#![recursion_limit="512"]
 
 use daemonize::Daemonize;
 use log::{error, info, trace, LevelFilter};
@@ -44,7 +45,8 @@ fn setup_logger(log_target: LogTarget, log_level: LevelFilter) {
     logger.apply().expect("Couldn't initialize logger");
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut cli_config: CliConfig = CliConfig::from_args();
 
     let is_daemon = !cli_config.no_daemon;
@@ -95,9 +97,6 @@ fn main() {
         );
     }));
 
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-
     let initial_state = setup::initial_state(handle, internal_config);
-    core.run(initial_state).unwrap();
+    initial_state.await;
 }

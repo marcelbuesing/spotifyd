@@ -1,4 +1,7 @@
 use futures::{self, Future};
+use futures_util::future::FutureExt;
+use futures_util::compat::Stream01CompatExt;
+
 #[cfg(feature = "dbus_keyring")]
 use keyring::Keyring;
 use librespot::{
@@ -15,8 +18,8 @@ use librespot::{
     },
 };
 use log::{error, info};
-use tokio_core::reactor::Handle;
-use tokio_signal::ctrl_c;
+use tokio::runtime::Handle;
+use tokio::signal::ctrl_c;
 
 use std::{io, process::exit};
 
@@ -129,20 +132,20 @@ pub(crate) fn initial_state(
             handle.clone(),
         )
     } else {
-        Box::new(futures::future::empty())
-            as Box<dyn futures::Future<Item = Session, Error = io::Error>>
+        Box::new(futures::future::ok(()))
+            as Box<dyn futures::Future<Output = Result<Session, io::Error>>>
     };
 
     let backend = find_backend(backend.as_ref().map(String::as_ref));
     main_loop::MainLoopState {
-        librespot_connection: main_loop::LibreSpotConnection::new(connection, discovery_stream),
+        librespot_connection: main_loop::LibreSpotConnection::new(connection.compat(), discovery_stream.compat()),
         audio_setup: main_loop::AudioSetup {
             mixer,
             backend,
             audio_device: config.audio_device.clone(),
         },
         spotifyd_state: main_loop::SpotifydState {
-            ctrl_c_stream: Box::new(ctrl_c(&handle).flatten_stream()),
+            ctrl_c_stream: Box::new(ctrl_c().flatten_stream()),
             shutting_down: false,
             cache,
             device_name: config.device_name,

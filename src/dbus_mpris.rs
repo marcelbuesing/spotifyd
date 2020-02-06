@@ -33,7 +33,7 @@ pub struct DbusServer {
     spirc: Rc<Spirc>,
     api_token: RspotifyToken,
     token_request: Option<Box<dyn Future<Item = LibrespotToken, Error = MercuryError>>>,
-    dbus_future: Option<Box<dyn Future<Item = (), Error = ()>>>,
+    dbus_future: Option<Box<dyn Future<Output = Result<(), ()>>>>,
     device_name: String,
 }
 
@@ -73,10 +73,9 @@ impl DbusServer {
 }
 
 impl Future for DbusServer {
-    type Error = ();
-    type Item = ();
+    type Output = ();
 
-    fn poll(&mut self) -> Poll<(), ()> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let mut got_new_token = false;
         if self.is_token_expired() {
             if let Some(ref mut fut) = self.token_request {
@@ -117,7 +116,7 @@ fn create_dbus_server(
     api_token: RspotifyToken,
     spirc: Rc<Spirc>,
     device_name: String,
-) -> Box<dyn Future<Item = (), Error = ()>> {
+) -> Box<dyn Future<Output = Result<(), ()>>> {
     macro_rules! spotify_api_method {
         ([ $sp:ident, $device:ident $(, $m:ident: $t:ty)*] $f:expr) => {
             {
