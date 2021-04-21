@@ -14,7 +14,7 @@ use serde::{de::Error, de::Unexpected, Deserialize, Deserializer};
 use sha1::{Digest, Sha1};
 use std::{fmt, fs, path::PathBuf, str::FromStr, string::ToString};
 use structopt::{clap::AppSettings, StructOpt};
-use url::Url;
+use reqwest::Url;
 
 const CONFIG_FILE_NAME: &str = "spotifyd.conf";
 
@@ -610,13 +610,12 @@ pub(crate) struct SpotifydConfig {
 }
 
 pub(crate) fn get_internal_config(config: CliConfig) -> SpotifydConfig {
-    let audio_cache = !config.shared_config.no_audio_cache;
+    let audio_cache_path =
+        (!config.shared_config.no_audio_cache).then(|| config.shared_config.cache_path);
 
-    let cache = config
-        .shared_config
-        .cache_path
-        .map(PathBuf::from)
-        .map(|path| Cache::new(path, audio_cache));
+    let cache = audio_cache_path.map(|path| {
+        Cache::new(None, path).expect("Failed to init cache path")
+    });
 
     let bitrate: LSBitrate = config
         .shared_config
@@ -734,9 +733,10 @@ pub(crate) fn get_internal_config(config: CliConfig) -> SpotifydConfig {
             normalisation: config.shared_config.volume_normalisation,
             normalisation_pregain,
             gapless: true,
+            .. Default::default()
         },
         session_config: SessionConfig {
-            user_agent: version::version_string(),
+            user_agent: version::VERSION_STRING.to_string(),
             device_id,
             proxy: proxy_url,
             ap_port: Some(443),
