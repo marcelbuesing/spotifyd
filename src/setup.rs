@@ -97,7 +97,7 @@ pub(crate) fn initial_state(
             name: config.device_name.clone(),
             device_type,
             volume: mixer().volume(),
-            volume_ctrl: volume_ctrl.clone(),
+            volume_ctrl: VolumeControl::Log,
         },
         device_id,
         zeroconf_port,
